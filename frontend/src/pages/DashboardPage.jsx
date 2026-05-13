@@ -5,7 +5,7 @@ import SearchBar from "../components/SearchBar";
 
 const BASE_URL =
   import.meta.env.VITE_API_URL ||
-  "http://192.168.0.170:8000";
+  "http://192.168.0.10:8000";
 
 export default function DashboardPage({
   onLogout,
@@ -335,17 +335,20 @@ export default function DashboardPage({
           </div>
 
           <button
-            onClick={() => {
-              localStorage.removeItem(
-                "token"
-              );
+              onClick={() => {
+                const confirmLogout = window.confirm(
+                  "Are you sure you want to logout?"
+                );
 
-              onLogout();
-            }}
-            className="px-5 py-3 rounded-2xl bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all duration-300 font-semibold shadow-lg hover:scale-105"
-          >
-            Logout
-          </button>
+                if (confirmLogout) {
+                  localStorage.removeItem("token");
+                  onLogout();
+                }
+              }}
+              className="px-5 py-3 rounded-2xl bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all duration-300 font-semibold shadow-lg hover:scale-105"
+            >
+              Logout
+            </button>
         </div>
       </header>
 

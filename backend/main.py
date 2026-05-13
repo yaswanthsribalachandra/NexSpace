@@ -37,7 +37,9 @@ from database import (
 from models import (
     UserRegister,
     UserLogin,
+    OTPLoginRequest,
     SendOTPRequest,
+    VerifyOTPRequest,
     ResetPasswordRequest,
     LinkCreate,
     LinkUpdate,
@@ -64,7 +66,7 @@ app = FastAPI(
 # API CONFIG
 # ======================================================
 
-HOST = "192.168.0.11"
+HOST = "192.168.0.10"
 
 PORT = 8000
 
@@ -80,33 +82,51 @@ REGISTER_URL = f"{AUTH_BASE}/register"
 
 LOGIN_URL = f"{AUTH_BASE}/login"
 
+LOGIN_OTP_URL = (
+    f"{AUTH_BASE}/login-otp"
+)
+
 ME_URL = f"{AUTH_BASE}/me"
 
-SEND_OTP_URL = f"{AUTH_BASE}/send-otp"
+SEND_OTP_URL = (
+    f"{AUTH_BASE}/send-otp"
+)
 
-VERIFY_OTP_URL = f"{AUTH_BASE}/verify-otp"
+VERIFY_OTP_URL = (
+    f"{AUTH_BASE}/verify-otp"
+)
 
-RESET_PASSWORD_URL = f"{AUTH_BASE}/reset-password"
+RESET_PASSWORD_URL = (
+    f"{AUTH_BASE}/reset-password"
+)
 
 # ======================================================
 # LINKS URLS
 # ======================================================
 
-LINKS_BASE = f"{BASE_URL}/api/links"
+LINKS_BASE = (
+    f"{BASE_URL}/api/links"
+)
 
 CREATE_LINK_URL = LINKS_BASE
 
 GET_LINKS_URL = LINKS_BASE
 
-UPDATE_LINK_URL = f"{LINKS_BASE}/{{link_id}}"
+UPDATE_LINK_URL = (
+    f"{LINKS_BASE}/{{link_id}}"
+)
 
-DELETE_LINK_URL = f"{LINKS_BASE}/{{link_id}}"
+DELETE_LINK_URL = (
+    f"{LINKS_BASE}/{{link_id}}"
+)
 
 # ======================================================
 # OTHER URLS
 # ======================================================
 
-HEALTH_URL = f"{BASE_URL}/health"
+HEALTH_URL = (
+    f"{BASE_URL}/health"
+)
 
 ROOT_URL = BASE_URL
 
@@ -114,9 +134,13 @@ ROOT_URL = BASE_URL
 # EMAIL CONFIG
 # ======================================================
 
-EMAIL = "dasariyaswanthsribalachandra@gmail.com"
+EMAIL = (
+    "dasariyaswanthsribalachandra@gmail.com"
+)
 
-EMAIL_PASS = "dtqv vuxm jrde zxjp"
+EMAIL_PASS = (
+    "dtqv vuxm jrde zxjp"
+)
 
 # ======================================================
 # CORS
@@ -141,14 +165,18 @@ def send_otp_email(
     otp
 ):
 
-    subject = "Password Reset OTP"
+    subject = (
+        "NexSpace Verification OTP"
+    )
 
     body = f"""
-Your OTP for password reset is:
+Your OTP is:
 
 {otp}
 
 This OTP expires in 5 minutes.
+
+Do not share this OTP with anyone.
 """
 
     msg = MIMEText(body)
@@ -313,7 +341,7 @@ async def register(
     }
 
 # ======================================================
-# LOGIN
+# LOGIN WITH PASSWORD
 # ======================================================
 
 @app.post(
@@ -369,6 +397,89 @@ async def login(
     }
 
 # ======================================================
+# LOGIN WITH OTP
+# ======================================================
+
+@app.post(
+    "/api/auth/login-otp",
+    response_model=TokenResponse,
+)
+async def login_with_otp(
+    data: OTPLoginRequest
+):
+
+    email = data.email
+
+    otp = data.otp
+
+    # CHECK USER
+    user = users_collection.find_one(
+        {
+            "email": email
+        }
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    # CHECK OTP
+    otp_data = otp_collection.find_one(
+        {
+            "email": email
+        }
+    )
+
+    if not otp_data:
+        raise HTTPException(
+            status_code=400,
+            detail="OTP not found",
+        )
+
+    # INVALID OTP
+    if otp_data["otp"] != otp:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid OTP",
+        )
+
+    # OTP EXPIRED
+    if (
+        otp_data["expiry"]
+        < datetime.utcnow()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="OTP expired",
+        )
+
+    # DELETE OTP
+    otp_collection.delete_one(
+        {
+            "email": email
+        }
+    )
+
+    # CREATE TOKEN
+    user_id = str(user["_id"])
+
+    access_token = (
+        create_access_token(
+            data={"sub": user_id}
+        )
+    )
+
+    return {
+        "access_token":
+        access_token,
+
+        "token_type":
+        "bearer",
+    }
+
+# ======================================================
 # CURRENT USER
 # ======================================================
 
@@ -404,20 +515,7 @@ async def send_otp(
 
     email = data.email
 
-    user = (
-        users_collection.find_one(
-            {
-                "email": email
-            }
-        )
-    )
-
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found",
-        )
-
+    # GENERATE OTP
     otp = str(
         randint(100000, 999999)
     )
@@ -427,6 +525,7 @@ async def send_otp(
         + timedelta(minutes=5)
     )
 
+    # SAVE OTP
     otp_collection.update_one(
         {"email": email},
         {
@@ -438,6 +537,7 @@ async def send_otp(
         upsert=True,
     )
 
+    # SEND EMAIL
     send_otp_email(
         email,
         otp
@@ -454,7 +554,7 @@ async def send_otp(
 
 @app.post("/api/auth/verify-otp")
 async def verify_otp(
-    data: ResetPasswordRequest
+    data: VerifyOTPRequest
 ):
 
     email = data.email
@@ -469,18 +569,21 @@ async def verify_otp(
         )
     )
 
+    # OTP NOT FOUND
     if not otp_data:
         raise HTTPException(
             status_code=400,
             detail="OTP not found",
         )
 
+    # INVALID OTP
     if otp_data["otp"] != otp:
         raise HTTPException(
             status_code=400,
             detail="Invalid OTP",
         )
 
+    # OTP EXPIRED
     if (
         otp_data["expiry"]
         < datetime.utcnow()
