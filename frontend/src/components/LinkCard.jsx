@@ -297,6 +297,7 @@ export default function LinkCard({
             className="mt-6 block w-full group relative overflow-hidden px-7 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-center font-bold shadow-2xl hover:scale-105 transition-all duration-300"
           >
             Visit Link →
+          
           </a>
         )}
       </div>
