@@ -24,6 +24,12 @@ export default function LinkCard({
     link.description ||
     "No Data Available";
 
+  // QR LIMIT
+  const MAX_QR_LENGTH = 1500;
+
+  const isQRTooLarge =
+    qrValue.length > MAX_QR_LENGTH;
+
   // COPY
   const handleCopy = () => {
     navigator.clipboard.writeText(
@@ -69,8 +75,10 @@ export default function LinkCard({
     >
       {/* BODY */}
       <div className="p-6 flex flex-col flex-1">
+
         {/* HEADER */}
         <div className="flex justify-between items-start gap-3">
+
           {/* TITLE */}
           <h3 className="text-xl font-bold text-gray-900 break-words line-clamp-2 flex-1">
             {link.title}
@@ -78,11 +86,10 @@ export default function LinkCard({
 
           {/* MENU */}
           <div className="relative shrink-0">
+
             <button
               onClick={() =>
-                setShowMenu(
-                  !showMenu
-                )
+                setShowMenu(!showMenu)
               }
               className="p-2 rounded-xl hover:bg-gray-100 transition"
             >
@@ -98,16 +105,15 @@ export default function LinkCard({
             {/* DROPDOWN */}
             {showMenu && (
               <div className="absolute right-0 mt-2 w-44 bg-white rounded-2xl shadow-2xl border border-gray-200 z-30 overflow-hidden">
+
                 {/* EDIT */}
                 <button
                   onClick={() => {
                     onEdit(link);
 
-                    setShowMenu(
-                      false
-                    );
+                    setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-green-700 hover:bg-green-50 transition font-semibold"
+                  className="w-full px-4 py-3 text-left text-sm text-green-700 hover:bg-green-50 transition font-semibold"
                 >
                   Edit
                 </button>
@@ -117,11 +123,9 @@ export default function LinkCard({
                   onClick={() => {
                     handleDelete();
 
-                    setShowMenu(
-                      false
-                    );
+                    setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition font-semibold"
+                  className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 transition font-semibold"
                 >
                   Delete
                 </button>
@@ -129,20 +133,17 @@ export default function LinkCard({
                 {/* QR */}
                 <button
                   onClick={() => {
-                    setShowQR(
-                      !showQR
-                    );
+                    setShowQR(!showQR);
 
-                    setShowMenu(
-                      false
-                    );
+                    setShowMenu(false);
                   }}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-blue-600 hover:bg-gray-100 transition font-semibold"
+                  className="w-full px-4 py-3 text-left text-sm text-blue-600 hover:bg-gray-100 transition font-semibold"
                 >
                   {showQR
                     ? "Hide QR"
                     : "Show QR"}
                 </button>
+
               </div>
             )}
           </div>
@@ -150,10 +151,9 @@ export default function LinkCard({
 
         {/* DOMAIN */}
         <div className="flex items-center gap-2 mt-2">
+
           <span className="text-sm text-gray-500 truncate">
-            {getDomain(
-              link.url
-            )}
+            {getDomain(link.url)}
           </span>
 
           {/* COPY */}
@@ -187,28 +187,26 @@ export default function LinkCard({
         {!link.url &&
           link.description && (
             <div className="mt-5">
+
               <button
                 onClick={() =>
-                  setShowNotes(
-                    !showNotes
-                  )
+                  setShowNotes(!showNotes)
                 }
                 className="w-full flex items-center justify-between px-4 py-4 rounded-2xl bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-all duration-300"
               >
                 <div className="flex items-center gap-3">
+
                   <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center">
                     📝
                   </div>
 
                   <div className="text-left">
                     <p className="font-semibold text-blue-900">
-                      Click to View
-                      Notes
+                      Click to View Notes
                     </p>
 
                     <p className="text-sm text-blue-600">
-                      Expand note
-                      content
+                      Expand note content
                     </p>
                   </div>
                 </div>
@@ -224,9 +222,10 @@ export default function LinkCard({
                 </div>
               </button>
 
-              {/* EXPANDED */}
+              {/* EXPANDED NOTES */}
               {showNotes && (
                 <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+
                   <div className="max-h-[300px] overflow-y-auto">
                     <p className="text-gray-700 whitespace-pre-wrap leading-7">
                       {
@@ -234,6 +233,7 @@ export default function LinkCard({
                       }
                     </p>
                   </div>
+
                 </div>
               )}
             </div>
@@ -247,43 +247,72 @@ export default function LinkCard({
         </div>
 
         {/* TAGS */}
-        {link.tags?.length >
-          0 && (
+        {link.tags?.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-5">
+
             {link.tags
               .slice(0, 4)
-              .map(
-                (
-                  tag,
-                  idx
-                ) => (
-                  <span
-                    key={idx}
-                    className="px-3 py-1 rounded-xl bg-gray-100 text-gray-700 text-xs font-medium"
-                  >
-                    #{tag}
-                  </span>
-                )
-              )}
+              .map((tag, idx) => (
+                <span
+                  key={idx}
+                  className="px-3 py-1 rounded-xl bg-gray-100 text-gray-700 text-xs font-medium"
+                >
+                  #{tag}
+                </span>
+              ))}
+
           </div>
         )}
 
         {/* QR */}
         {showQR && (
           <div className="mt-6 border-t border-gray-200 pt-5">
-            <div className="flex flex-col items-center">
-              <div className="bg-white p-4 rounded-3xl border shadow-sm">
-                <QRCodeCanvas
-                  value={qrValue}
-                  size={140}
-                  includeMargin
-                />
-              </div>
 
-              <p className="text-xs text-gray-500 mt-3 text-center">
-                Scan QR to open
-                link or notes
-              </p>
+            <div className="flex flex-col items-center">
+
+              {!isQRTooLarge ? (
+
+                <>
+                  <div className="bg-white p-4 rounded-3xl border shadow-sm">
+
+                    <QRCodeCanvas
+                      value={qrValue}
+                      size={140}
+                      includeMargin
+                      level="L"
+                    />
+
+                  </div>
+
+                  <p className="text-xs text-gray-500 mt-3 text-center">
+                    Scan QR to open link or notes
+                  </p>
+                </>
+
+              ) : (
+
+                <div className="w-full rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
+
+                  <div className="text-4xl mb-3">
+                    ⚠️
+                  </div>
+
+                  <h3 className="text-lg font-bold text-red-600">
+                    QR Not Available
+                  </h3>
+
+                  <p className="text-sm text-red-500 mt-2 leading-6">
+                    Too much information to generate a QR code.
+                  </p>
+
+                  <p className="text-xs text-gray-500 mt-3">
+                    Try shortening the notes or use a share link instead.
+                  </p>
+
+                </div>
+
+              )}
+
             </div>
           </div>
         )}
@@ -297,9 +326,9 @@ export default function LinkCard({
             className="mt-6 block w-full group relative overflow-hidden px-7 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-center font-bold shadow-2xl hover:scale-105 transition-all duration-300"
           >
             Visit Link →
-          
           </a>
         )}
+
       </div>
     </div>
   );
