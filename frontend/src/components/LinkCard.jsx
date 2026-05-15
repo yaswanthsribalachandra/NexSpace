@@ -18,11 +18,16 @@ export default function LinkCard({
   const [showNotes, setShowNotes] =
     useState(false);
 
+  // SAFE URL CHECK
+  const hasUrl =
+    link.url &&
+    link.url.trim() !== "";
+
   // QR VALUE
-  const qrValue =
-    link.url?.trim() ||
-    link.description ||
-    "No Data Available";
+  const qrValue = hasUrl
+    ? link.url.trim()
+    : link.description?.trim() ||
+      "No Data Available";
 
   // QR LIMIT
   const MAX_QR_LENGTH = 1500;
@@ -31,16 +36,23 @@ export default function LinkCard({
     qrValue.length > MAX_QR_LENGTH;
 
   // COPY
-  const handleCopy = () => {
-    navigator.clipboard.writeText(
-      qrValue
-    );
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        qrValue
+      );
 
-    setCopied(true);
+      setCopied(true);
 
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error(
+        "Copy failed:",
+        error
+      );
+    }
   };
 
   // DELETE
@@ -56,13 +68,18 @@ export default function LinkCard({
 
   // DOMAIN
   const getDomain = (url) => {
-    if (!url) return "Notes";
+    if (
+      !url ||
+      url.trim() === ""
+    ) {
+      return "Notes";
+    }
 
     try {
       return new URL(url)
         .hostname;
     } catch {
-      return url;
+      return "Notes";
     }
   };
 
@@ -110,7 +127,6 @@ export default function LinkCard({
                 <button
                   onClick={() => {
                     onEdit(link);
-
                     setShowMenu(false);
                   }}
                   className="w-full px-4 py-3 text-left text-sm text-green-700 hover:bg-green-50 transition font-semibold"
@@ -122,7 +138,6 @@ export default function LinkCard({
                 <button
                   onClick={() => {
                     handleDelete();
-
                     setShowMenu(false);
                   }}
                   className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 transition font-semibold"
@@ -134,7 +149,6 @@ export default function LinkCard({
                 <button
                   onClick={() => {
                     setShowQR(!showQR);
-
                     setShowMenu(false);
                   }}
                   className="w-full px-4 py-3 text-left text-sm text-blue-600 hover:bg-gray-100 transition font-semibold"
@@ -149,7 +163,7 @@ export default function LinkCard({
           </div>
         </div>
 
-        {/* DOMAIN */}
+        {/* DOMAIN + COPY */}
         <div className="flex items-center gap-2 mt-2">
 
           <span className="text-sm text-gray-500 truncate">
@@ -183,14 +197,16 @@ export default function LinkCard({
           </button>
         </div>
 
-        {/* NOTES */}
-        {!link.url &&
+        {/* NOTES SECTION */}
+        {!hasUrl &&
           link.description && (
             <div className="mt-5">
 
               <button
                 onClick={() =>
-                  setShowNotes(!showNotes)
+                  setShowNotes(
+                    !showNotes
+                  )
                 }
                 className="w-full flex items-center justify-between px-4 py-4 rounded-2xl bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-all duration-300"
               >
@@ -227,11 +243,13 @@ export default function LinkCard({
                 <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-5">
 
                   <div className="max-h-[300px] overflow-y-auto">
-                    <p className="text-gray-700 whitespace-pre-wrap leading-7">
+
+                    <p className="text-gray-700 whitespace-pre-wrap break-words leading-7">
                       {
                         link.description
                       }
                     </p>
+
                   </div>
 
                 </div>
@@ -247,7 +265,8 @@ export default function LinkCard({
         </div>
 
         {/* TAGS */}
-        {link.tags?.length > 0 && (
+        {link.tags?.length >
+          0 && (
           <div className="flex flex-wrap gap-2 mt-5">
 
             {link.tags
@@ -264,14 +283,13 @@ export default function LinkCard({
           </div>
         )}
 
-        {/* QR */}
+        {/* QR SECTION */}
         {showQR && (
           <div className="mt-6 border-t border-gray-200 pt-5">
 
             <div className="flex flex-col items-center">
 
               {!isQRTooLarge ? (
-
                 <>
                   <div className="bg-white p-4 rounded-3xl border shadow-sm">
 
@@ -288,9 +306,7 @@ export default function LinkCard({
                     Scan QR to open link or notes
                   </p>
                 </>
-
               ) : (
-
                 <div className="w-full rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
 
                   <div className="text-4xl mb-3">
@@ -310,7 +326,6 @@ export default function LinkCard({
                   </p>
 
                 </div>
-
               )}
 
             </div>
@@ -318,7 +333,7 @@ export default function LinkCard({
         )}
 
         {/* LINK BUTTON */}
-        {link.url && (
+        {hasUrl && (
           <a
             href={link.url}
             target="_blank"
