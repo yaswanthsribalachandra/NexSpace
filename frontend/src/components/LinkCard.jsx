@@ -23,11 +23,12 @@ export default function LinkCard({
     link.url &&
     link.url.trim() !== "";
 
-  // QR VALUE
+  // SAFE COPY VALUE
   const qrValue = hasUrl
-    ? link.url.trim()
-    : link.description?.trim() ||
-      "No Data Available";
+    ? String(link.url || "").trim()
+    : String(
+        link.description || ""
+      ).trim();
 
   // QR LIMIT
   const MAX_QR_LENGTH = 1500;
@@ -35,22 +36,68 @@ export default function LinkCard({
   const isQRTooLarge =
     qrValue.length > MAX_QR_LENGTH;
 
-  // COPY
+  // COPY FUNCTION
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(
-        qrValue
-      );
+      const textToCopy =
+        qrValue.length > 50000
+          ? qrValue.slice(0, 50000)
+          : qrValue;
+
+      // MODERN CLIPBOARD API
+      if (
+        navigator.clipboard &&
+        window.isSecureContext
+      ) {
+        await navigator.clipboard.writeText(
+          textToCopy
+        );
+      } else {
+        // FALLBACK METHOD
+        const textArea =
+          document.createElement(
+            "textarea"
+          );
+
+        textArea.value = textToCopy;
+
+        textArea.style.position =
+          "fixed";
+
+        textArea.style.left =
+          "-999999px";
+
+        textArea.style.top =
+          "-999999px";
+
+        document.body.appendChild(
+          textArea
+        );
+
+        textArea.focus();
+        textArea.select();
+
+        document.execCommand(
+          "copy"
+        );
+
+        textArea.remove();
+      }
 
       setCopied(true);
 
       setTimeout(() => {
         setCopied(false);
       }, 2000);
+
     } catch (error) {
       console.error(
         "Copy failed:",
         error
+      );
+
+      alert(
+        "Failed to copy text."
       );
     }
   };
@@ -170,10 +217,10 @@ export default function LinkCard({
             {getDomain(link.url)}
           </span>
 
-          {/* COPY */}
+          {/* COPY BUTTON */}
           <button
             onClick={handleCopy}
-            className="ml-auto shrink-0 p-2 rounded-xl hover:bg-gray-100 transition"
+            className="ml-auto shrink-0 p-2 rounded-xl hover:bg-gray-100 transition flex items-center justify-center min-w-[42px] h-[42px]"
           >
             {copied ? (
               <span className="text-green-600 text-sm font-semibold">
