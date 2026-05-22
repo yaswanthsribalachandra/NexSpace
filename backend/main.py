@@ -1,72 +1,46 @@
-from fastapi import (
-    FastAPI,
-    Depends,
-    HTTPException,
-)
-
-from fastapi.middleware.cors import (
-    CORSMiddleware,
-)
-
-from fastapi.security import (
-    HTTPBearer,
-    HTTPAuthorizationCredentials,
-)
-
-from datetime import (
-    datetime,
-    timedelta,
-)
-
-from bson import ObjectId
-
-import string
 import random
 import smtplib
-
+import string
+from datetime import datetime, timedelta
+from email.mime.text import MIMEText
 from random import randint
 
-from email.mime.text import MIMEText
-
-from database import (
-    users_collection,
-    links_collection,
-    otp_collection,
-)
-
-from models import (
-    UserRegister,
-    UserLogin,
-    OTPLoginRequest,
-    SendOTPRequest,
-    VerifyOTPRequest,
-    ResetPasswordRequest,
-    LinkCreate,
-    LinkUpdate,
-    TokenResponse,
-)
+from bson import ObjectId
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from auth import (
+    create_access_token,
+    get_user_by_id,
     hash_password,
     verify_password,
-    create_access_token,
     verify_token,
-    get_user_by_id,
+)
+from database import links_collection, otp_collection, users_collection
+from models import (
+    LinkCreate,
+    LinkUpdate,
+    OTPLoginRequest,
+    ResetPasswordRequest,
+    SendOTPRequest,
+    TokenResponse,
+    UserLogin,
+    UserRegister,
+    VerifyOTPRequest,
 )
 
 # ======================================================
 # APP
 # ======================================================
 
-app = FastAPI(
-    title="LinkManager API"
-)
+app = FastAPI(title="LinkManager API")
 
 # ======================================================
 # API CONFIG
 # ======================================================
 
-HOST = "192.168.0.14"
+HOST = "192.168.0.4"
 
 PORT = 8000
 
@@ -82,51 +56,35 @@ REGISTER_URL = f"{AUTH_BASE}/register"
 
 LOGIN_URL = f"{AUTH_BASE}/login"
 
-LOGIN_OTP_URL = (
-    f"{AUTH_BASE}/login-otp"
-)
+LOGIN_OTP_URL = f"{AUTH_BASE}/login-otp"
 
 ME_URL = f"{AUTH_BASE}/me"
 
-SEND_OTP_URL = (
-    f"{AUTH_BASE}/send-otp"
-)
+SEND_OTP_URL = f"{AUTH_BASE}/send-otp"
 
-VERIFY_OTP_URL = (
-    f"{AUTH_BASE}/verify-otp"
-)
+VERIFY_OTP_URL = f"{AUTH_BASE}/verify-otp"
 
-RESET_PASSWORD_URL = (
-    f"{AUTH_BASE}/reset-password"
-)
+RESET_PASSWORD_URL = f"{AUTH_BASE}/reset-password"
 
 # ======================================================
 # LINKS URLS
 # ======================================================
 
-LINKS_BASE = (
-    f"{BASE_URL}/api/links"
-)
+LINKS_BASE = f"{BASE_URL}/api/links"
 
 CREATE_LINK_URL = LINKS_BASE
 
 GET_LINKS_URL = LINKS_BASE
 
-UPDATE_LINK_URL = (
-    f"{LINKS_BASE}/{{link_id}}"
-)
+UPDATE_LINK_URL = f"{LINKS_BASE}/{{link_id}}"
 
-DELETE_LINK_URL = (
-    f"{LINKS_BASE}/{{link_id}}"
-)
+DELETE_LINK_URL = f"{LINKS_BASE}/{{link_id}}"
 
 # ======================================================
 # OTHER URLS
 # ======================================================
 
-HEALTH_URL = (
-    f"{BASE_URL}/health"
-)
+HEALTH_URL = f"{BASE_URL}/health"
 
 ROOT_URL = BASE_URL
 
@@ -134,13 +92,9 @@ ROOT_URL = BASE_URL
 # EMAIL CONFIG
 # ======================================================
 
-EMAIL = (
-    "dasariyaswanthsribalachandra@gmail.com"
-)
+EMAIL = "dasariyaswanthsribalachandra@gmail.com"
 
-EMAIL_PASS = (
-    "dtqv vuxm jrde zxjp"
-)
+EMAIL_PASS = "dtqv vuxm jrde zxjp"
 
 # ======================================================
 # CORS
@@ -160,14 +114,10 @@ security = HTTPBearer()
 # SEND OTP EMAIL
 # ======================================================
 
-def send_otp_email(
-    receiver_email,
-    otp
-):
 
-    subject = (
-        "NexSpace Verification OTP"
-    )
+def send_otp_email(receiver_email, otp):
+
+    subject = "NexSpace Verification OTP"
 
     body = f"""
 Your OTP is:
@@ -187,34 +137,24 @@ Do not share this OTP with anyone.
 
     msg["To"] = receiver_email
 
-    server = smtplib.SMTP(
-        "smtp.gmail.com",
-        587
-    )
+    server = smtplib.SMTP("smtp.gmail.com", 587)
 
     server.starttls()
 
-    server.login(
-        EMAIL,
-        EMAIL_PASS
-    )
+    server.login(EMAIL, EMAIL_PASS)
 
-    server.sendmail(
-        EMAIL,
-        receiver_email,
-        msg.as_string()
-    )
+    server.sendmail(EMAIL, receiver_email, msg.as_string())
 
     server.quit()
+
 
 # ======================================================
 # AUTH HELPER
 # ======================================================
 
+
 def get_current_user(
-    credentials:
-    HTTPAuthorizationCredentials
-    = Depends(security),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
 
     token = credentials.credentials
@@ -237,58 +177,38 @@ def get_current_user(
 
     return user
 
+
 # ======================================================
 # GENERATE SHORT CODE
 # ======================================================
 
-def generate_short_code(
-    length: int = 6
-):
 
-    characters = (
-        string.ascii_letters
-        + string.digits
-    )
+def generate_short_code(length: int = 6):
+
+    characters = string.ascii_letters + string.digits
 
     while True:
 
-        short_code = "".join(
-            random.choice(characters)
-            for _ in range(length)
-        )
+        short_code = "".join(random.choice(characters) for _ in range(length))
 
-        existing = (
-            links_collection.find_one(
-                {
-                    "short_code":
-                    short_code
-                }
-            )
-        )
+        existing = links_collection.find_one({"short_code": short_code})
 
         if not existing:
             return short_code
+
 
 # ======================================================
 # REGISTER
 # ======================================================
 
+
 @app.post(
     "/api/auth/register",
     response_model=TokenResponse,
 )
-async def register(
-    user_data: UserRegister
-):
+async def register(user_data: UserRegister):
 
-    existing_user = (
-        users_collection.find_one(
-            {
-                "email":
-                user_data.email
-            }
-        )
-    )
+    existing_user = users_collection.find_one({"email": user_data.email})
 
     if existing_user:
         raise HTTPException(
@@ -296,70 +216,39 @@ async def register(
             detail="Email already registered",
         )
 
-    hashed_password = (
-        hash_password(
-            user_data.password
-        )
-    )
+    hashed_password = hash_password(user_data.password)
 
     user_doc = {
-        "email":
-        user_data.email,
-
-        "password":
-        hashed_password,
-
-        "full_name":
-        user_data.full_name,
-
-        "created_at":
-        datetime.utcnow(),
+        "email": user_data.email,
+        "password": hashed_password,
+        "full_name": user_data.full_name,
+        "created_at": datetime.utcnow(),
     }
 
-    result = (
-        users_collection.insert_one(
-            user_doc
-        )
-    )
+    result = users_collection.insert_one(user_doc)
 
-    user_id = str(
-        result.inserted_id
-    )
+    user_id = str(result.inserted_id)
 
-    access_token = (
-        create_access_token(
-            data={"sub": user_id}
-        )
-    )
+    access_token = create_access_token(data={"sub": user_id})
 
     return {
-        "access_token":
-        access_token,
-
-        "token_type":
-        "bearer",
+        "access_token": access_token,
+        "token_type": "bearer",
     }
+
 
 # ======================================================
 # LOGIN WITH PASSWORD
 # ======================================================
 
+
 @app.post(
     "/api/auth/login",
     response_model=TokenResponse,
 )
-async def login(
-    user_data: UserLogin
-):
+async def login(user_data: UserLogin):
 
-    user = (
-        users_collection.find_one(
-            {
-                "email":
-                user_data.email
-            }
-        )
-    )
+    user = users_collection.find_one({"email": user_data.email})
 
     if not user:
         raise HTTPException(
@@ -367,11 +256,9 @@ async def login(
             detail="Invalid credentials",
         )
 
-    valid_password = (
-        verify_password(
-            user_data.password,
-            user["password"],
-        )
+    valid_password = verify_password(
+        user_data.password,
+        user["password"],
     )
 
     if not valid_password:
@@ -382,42 +269,31 @@ async def login(
 
     user_id = str(user["_id"])
 
-    access_token = (
-        create_access_token(
-            data={"sub": user_id}
-        )
-    )
+    access_token = create_access_token(data={"sub": user_id})
 
     return {
-        "access_token":
-        access_token,
-
-        "token_type":
-        "bearer",
+        "access_token": access_token,
+        "token_type": "bearer",
     }
+
 
 # ======================================================
 # LOGIN WITH OTP
 # ======================================================
 
+
 @app.post(
     "/api/auth/login-otp",
     response_model=TokenResponse,
 )
-async def login_with_otp(
-    data: OTPLoginRequest
-):
+async def login_with_otp(data: OTPLoginRequest):
 
     email = data.email
 
     otp = data.otp
 
     # CHECK USER
-    user = users_collection.find_one(
-        {
-            "email": email
-        }
-    )
+    user = users_collection.find_one({"email": email})
 
     if not user:
         raise HTTPException(
@@ -426,11 +302,7 @@ async def login_with_otp(
         )
 
     # CHECK OTP
-    otp_data = otp_collection.find_one(
-        {
-            "email": email
-        }
-    )
+    otp_data = otp_collection.find_one({"email": email})
 
     if not otp_data:
         raise HTTPException(
@@ -446,84 +318,58 @@ async def login_with_otp(
         )
 
     # OTP EXPIRED
-    if (
-        otp_data["expiry"]
-        < datetime.utcnow()
-    ):
+    if otp_data["expiry"] < datetime.utcnow():
         raise HTTPException(
             status_code=400,
             detail="OTP expired",
         )
 
     # DELETE OTP
-    otp_collection.delete_one(
-        {
-            "email": email
-        }
-    )
+    otp_collection.delete_one({"email": email})
 
     # CREATE TOKEN
     user_id = str(user["_id"])
 
-    access_token = (
-        create_access_token(
-            data={"sub": user_id}
-        )
-    )
+    access_token = create_access_token(data={"sub": user_id})
 
     return {
-        "access_token":
-        access_token,
-
-        "token_type":
-        "bearer",
+        "access_token": access_token,
+        "token_type": "bearer",
     }
+
 
 # ======================================================
 # CURRENT USER
 # ======================================================
 
+
 @app.get("/api/auth/me")
 async def get_me(
-    current_user=Depends(
-        get_current_user
-    ),
+    current_user=Depends(get_current_user),
 ):
 
     return {
-        "_id":
-        str(current_user["_id"]),
-
-        "email":
-        current_user["email"],
-
-        "full_name":
-        current_user["full_name"],
-
-        "created_at":
-        current_user["created_at"],
+        "_id": str(current_user["_id"]),
+        "email": current_user["email"],
+        "full_name": current_user["full_name"],
+        "created_at": current_user["created_at"],
     }
+
 
 # ======================================================
 # SEND OTP
 # ======================================================
 
+
 @app.post("/api/auth/send-otp")
-async def send_otp(
-    data: SendOTPRequest
-):
+async def send_otp(data: SendOTPRequest):
 
     email = data.email
 
     # GENERATE OTP
-    otp = str(
-        randint(100000, 999999)
-    )
+    otp = str(randint(100000, 999999))
 
-    expiry = (
-        datetime.utcnow()
-        + timedelta(minutes=5)
-    )
+    expiry = datetime.utcnow() + timedelta(minutes=5)
 
     # SAVE OTP
     otp_collection.update_one(
@@ -538,36 +384,24 @@ async def send_otp(
     )
 
     # SEND EMAIL
-    send_otp_email(
-        email,
-        otp
-    )
+    send_otp_email(email, otp)
 
-    return {
-        "message":
-        "OTP sent successfully"
-    }
+    return {"message": "OTP sent successfully"}
+
 
 # ======================================================
 # VERIFY OTP
 # ======================================================
 
+
 @app.post("/api/auth/verify-otp")
-async def verify_otp(
-    data: VerifyOTPRequest
-):
+async def verify_otp(data: VerifyOTPRequest):
 
     email = data.email
 
     otp = data.otp
 
-    otp_data = (
-        otp_collection.find_one(
-            {
-                "email": email
-            }
-        )
-    )
+    otp_data = otp_collection.find_one({"email": email})
 
     # OTP NOT FOUND
     if not otp_data:
@@ -584,30 +418,22 @@ async def verify_otp(
         )
 
     # OTP EXPIRED
-    if (
-        otp_data["expiry"]
-        < datetime.utcnow()
-    ):
+    if otp_data["expiry"] < datetime.utcnow():
         raise HTTPException(
             status_code=400,
             detail="OTP expired",
         )
 
-    return {
-        "message":
-        "OTP verified successfully"
-    }
+    return {"message": "OTP verified successfully"}
+
 
 # ======================================================
 # RESET PASSWORD
 # ======================================================
 
-@app.post(
-    "/api/auth/reset-password"
-)
-async def reset_password(
-    data: ResetPasswordRequest
-):
+
+@app.post("/api/auth/reset-password")
+async def reset_password(data: ResetPasswordRequest):
 
     email = data.email
 
@@ -615,13 +441,7 @@ async def reset_password(
 
     password = data.password
 
-    user = (
-        users_collection.find_one(
-            {
-                "email": email
-            }
-        )
-    )
+    user = users_collection.find_one({"email": email})
 
     if not user:
         raise HTTPException(
@@ -629,13 +449,7 @@ async def reset_password(
             detail="User not found",
         )
 
-    otp_data = (
-        otp_collection.find_one(
-            {
-                "email": email
-            }
-        )
-    )
+    otp_data = otp_collection.find_one({"email": email})
 
     if not otp_data:
         raise HTTPException(
@@ -649,20 +463,15 @@ async def reset_password(
             detail="Invalid OTP",
         )
 
-    if (
-        otp_data["expiry"]
-        < datetime.utcnow()
-    ):
+    if otp_data["expiry"] < datetime.utcnow():
         raise HTTPException(
             status_code=400,
             detail="OTP expired",
         )
 
-    old_password_same = (
-        verify_password(
-            password,
-            user["password"],
-        )
+    old_password_same = verify_password(
+        password,
+        user["password"],
     )
 
     if old_password_same:
@@ -671,36 +480,22 @@ async def reset_password(
             detail="New password cannot be same as old password",
         )
 
-    hashed_password = (
-        hash_password(password)
-    )
+    hashed_password = hash_password(password)
 
     users_collection.update_one(
-        {
-            "email": email
-        },
-        {
-            "$set": {
-                "password":
-                hashed_password
-            }
-        },
+        {"email": email},
+        {"$set": {"password": hashed_password}},
     )
 
-    otp_collection.delete_one(
-        {
-            "email": email
-        }
-    )
+    otp_collection.delete_one({"email": email})
 
-    return {
-        "message":
-        "Password reset successful"
-    }
+    return {"message": "Password reset successful"}
+
 
 # ======================================================
 # CREATE LINK
 # ======================================================
+
 
 @app.post(
     "/api/links",
@@ -708,102 +503,70 @@ async def reset_password(
 )
 async def create_link(
     link_data: LinkCreate,
-    current_user=Depends(
-        get_current_user
-    ),
+    current_user=Depends(get_current_user),
 ):
 
-    user_id = str(
-        current_user["_id"]
-    )
+    user_id = str(current_user["_id"])
 
     link_doc = {
         "user_id": user_id,
         "title": link_data.title,
         "url": link_data.url,
-        "category":
-        link_data.category,
+        "category": link_data.category,
         "tags": link_data.tags,
-        "description":
-        link_data.description,
+        "description": link_data.description,
         "color": link_data.color,
-        "short_code":
-        generate_short_code(),
-        "created_at":
-        datetime.utcnow(),
-        "updated_at":
-        datetime.utcnow(),
+        "short_code": generate_short_code(),
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
     }
 
-    result = (
-        links_collection.insert_one(
-            link_doc
-        )
-    )
+    result = links_collection.insert_one(link_doc)
 
-    link_doc["_id"] = str(
-        result.inserted_id
-    )
+    link_doc["_id"] = str(result.inserted_id)
 
     return link_doc
+
 
 # ======================================================
 # GET LINKS
 # ======================================================
 
+
 @app.get("/api/links")
 async def get_links(
-    current_user=Depends(
-        get_current_user
-    ),
+    current_user=Depends(get_current_user),
 ):
 
-    user_id = str(
-        current_user["_id"]
-    )
+    user_id = str(current_user["_id"])
 
-    links = list(
-        links_collection.find(
-            {
-                "user_id": user_id
-            }
-        ).sort(
-            "created_at",
-            -1
-        )
-    )
+    links = list(links_collection.find({"user_id": user_id}).sort("created_at", -1))
 
     for link in links:
-        link["_id"] = str(
-            link["_id"]
-        )
+        link["_id"] = str(link["_id"])
 
     return links
+
 
 # ======================================================
 # UPDATE LINK
 # ======================================================
 
+
 @app.put("/api/links/{link_id}")
 async def update_link(
     link_id: str,
     link_data: LinkUpdate,
-    current_user=Depends(
-        get_current_user
-    ),
+    current_user=Depends(get_current_user),
 ):
 
-    user_id = str(
-        current_user["_id"]
-    )
+    user_id = str(current_user["_id"])
 
-    existing_link = (
-        links_collection.find_one(
-            {
-                "_id": ObjectId(link_id),
-                "user_id": user_id,
-            }
-        )
+    existing_link = links_collection.find_one(
+        {
+            "_id": ObjectId(link_id),
+            "user_id": user_id,
+        }
     )
 
     if not existing_link:
@@ -822,32 +585,19 @@ async def update_link(
         "updated_at": datetime.utcnow(),
     }
 
-    links_collection.update_one(
-        {
-            "_id": ObjectId(link_id)
-        },
-        {
-            "$set": update_data
-        }
-    )
+    links_collection.update_one({"_id": ObjectId(link_id)}, {"$set": update_data})
 
-    updated_link = (
-        links_collection.find_one(
-            {
-                "_id": ObjectId(link_id)
-            }
-        )
-    )
+    updated_link = links_collection.find_one({"_id": ObjectId(link_id)})
 
-    updated_link["_id"] = str(
-        updated_link["_id"]
-    )
+    updated_link["_id"] = str(updated_link["_id"])
 
     return updated_link
+
 
 # ======================================================
 # DELETE LINK
 # ======================================================
+
 
 @app.delete(
     "/api/links/{link_id}",
@@ -855,25 +605,16 @@ async def update_link(
 )
 async def delete_link(
     link_id: str,
-    current_user=Depends(
-        get_current_user
-    ),
+    current_user=Depends(get_current_user),
 ):
 
-    user_id = str(
-        current_user["_id"]
-    )
+    user_id = str(current_user["_id"])
 
-    result = (
-        links_collection.delete_one(
-            {
-                "_id":
-                ObjectId(link_id),
-
-                "user_id":
-                user_id,
-            }
-        )
+    result = links_collection.delete_one(
+        {
+            "_id": ObjectId(link_id),
+            "user_id": user_id,
+        }
     )
 
     if result.deleted_count == 0:
@@ -884,40 +625,34 @@ async def delete_link(
 
     return None
 
+
 # ======================================================
 # HEALTH
 # ======================================================
 
+
 @app.get("/health")
 async def health_check():
 
-    return {
-        "status": "ok"
-    }
+    return {"status": "ok"}
+
 
 # ======================================================
 # ROOT
 # ======================================================
 
+
 @app.get("/")
 async def root():
 
     return {
-        "message":
-        "LinkManager API Running",
-
-        "base_url":
-        BASE_URL,
-
-        "login_url":
-        LOGIN_URL,
-
-        "register_url":
-        REGISTER_URL,
-
-        "links_url":
-        LINKS_BASE,
+        "message": "LinkManager API Running",
+        "base_url": BASE_URL,
+        "login_url": LOGIN_URL,
+        "register_url": REGISTER_URL,
+        "links_url": LINKS_BASE,
     }
+
 
 # ======================================================
 # RUN SERVER

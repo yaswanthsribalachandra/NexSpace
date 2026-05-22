@@ -1,16 +1,12 @@
-from pydantic import (
-    BaseModel,
-    EmailStr,
-    Field,
-)
-
+from datetime import datetime
 from typing import Optional
 
-from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field
 
 # ======================================================
 # AUTH MODELS
 # ======================================================
+
 
 # REGISTER
 class UserRegister(BaseModel):
@@ -69,6 +65,7 @@ class UserResponse(BaseModel):
 # ======================================================
 # LINK MODELS
 # ======================================================
+
 
 # CREATE LINK
 class LinkCreate(BaseModel):
